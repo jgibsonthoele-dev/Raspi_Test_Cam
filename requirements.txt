@@ -1,6 +1,5 @@
 opencv-python
 numpy
-mediapipe
 picamera2
 onnxruntime
 gpiozero

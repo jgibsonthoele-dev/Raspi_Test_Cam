@@ -1,6 +1,6 @@
 # Driver Attentiveness Monitor
 
-Production-style Raspberry Pi 5 driver attentiveness monitor using Picamera2, Raspberry Pi AI Camera, YOLOv8 ONNX inference, MediaPipe Pose, and MediaPipe Face Mesh.
+Production-style Raspberry Pi 5 driver attentiveness monitor using Picamera2, Raspberry Pi AI Camera, YOLOv8 ONNX inference, and YOLOv8-pose.
 
 ## Hardware Target
 
@@ -24,7 +24,8 @@ project/
 |-- requirements.txt
 |-- README.md
 `-- model/
-    `-- phone_detector.onnx
+    |-- phone_detector.onnx
+    `-- yolov8n-pose.pt
 ```
 
 ## Setup
@@ -49,6 +50,14 @@ Place your YOLOv8n ONNX model at:
 model/phone_detector.onnx
 ```
 
+Place your YOLOv8-pose model at:
+
+```text
+model/yolov8n-pose.pt
+```
+
+`model/yolov8n-pose.pt` is required. The app does not fall back to automatic model downloads.
+
 The detector expects a YOLOv8-style output tensor in either `[1, 84, N]`, `[1, N, 84]`, or `[1, N, 6]` format. COCO class `0` is treated as `person`; COCO class `67` is treated as `phone`.
 
 Example export:
@@ -59,6 +68,18 @@ cp yolov8n.onnx model/phone_detector.onnx
 ```
 
 If you train a custom two-class model, map class `0` to `person` and class `1` to `phone`, or adjust `COCO_NAMES` in `detector.py`.
+
+YOLOv8-pose uses the COCO 17-keypoint layout. The app extracts:
+
+- nose
+- shoulders
+- elbows
+- wrists
+- hips
+
+The largest detected person is treated as the driver. Wrist positions are used for phone-in-hand detection.
+
+Eye-direction and face-landmark head-pose scoring are disabled unless you add a replacement face model.
 
 ## Run
 
@@ -91,6 +112,29 @@ If you see a startup or frame-capture error:
 
 - Run on Raspberry Pi OS Bookworm 64-bit with the Raspberry Pi AI Camera attached.
 - Run `python main.py`; USB cameras are intentionally not supported by this project.
+- Confirm the same Python interpreter can import Picamera2:
+
+```bash
+python -c "from picamera2 import Picamera2; print('Picamera2 OK')"
+```
+
+- If Picamera2 is installed with `apt` but the import check fails inside `.venv`, recreate the environment with system packages:
+
+```bash
+deactivate 2>/dev/null || true
+rm -rf .venv
+python3 -m venv .venv --system-site-packages
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+- You can also run with system Python:
+
+```bash
+python3 main.py
+```
+
 - Check camera visibility with `rpicam-hello --list-cameras` for CSI/AI Camera devices.
 - Make sure no other process is using the camera.
 - If Picamera2 starts but returns no frames, lower the requested frame size in `config.py`.
@@ -121,8 +165,8 @@ If CPU FPS is too low:
 
 - Export at `imgsz=416` or `imgsz=320` and update `YOLO_INPUT_SIZE`.
 - Use a custom model trained only for `person` and `phone`.
-- Process detection every second frame while keeping MediaPipe every frame.
-- Disable Face Mesh refinement only if iris-based gaze is not required.
+- Process detection every second frame while keeping pose every frame.
+- Lower `POSE_IMAGE_SIZE` in `config.py` from `384` to `320`.
 
 ## IMX500 ONNX to RPK Overview
 
@@ -144,4 +188,4 @@ Compatibility notes:
 
 ## Clean Shutdown
 
-`main.py` closes MediaPipe objects, stops Picamera2, releases OpenCV capture objects, closes the optional buzzer, and destroys OpenCV windows in a `finally` block to reduce shutdown warnings and GLib-related camera cleanup issues.
+`main.py` closes model objects, stops Picamera2, closes the optional buzzer, and destroys OpenCV windows in a `finally` block to reduce shutdown warnings and camera cleanup issues.

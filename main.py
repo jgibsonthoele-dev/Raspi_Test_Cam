@@ -18,8 +18,10 @@ from utils import FPSCounter, bbox_center, nearest_distance
 
 try:
     from picamera2 import Picamera2
-except Exception:  # Allows development/testing on non-Pi machines.
+    PICAMERA2_IMPORT_ERROR = None
+except Exception as exc:
     Picamera2 = None
+    PICAMERA2_IMPORT_ERROR = exc
 
 
 class CameraSource:
@@ -30,8 +32,10 @@ class CameraSource:
         self.source_name = "Pi AI Camera / Picamera2"
         if Picamera2 is None:
             raise RuntimeError(
-                "Picamera2 is not available. Install python3-picamera2 on Raspberry Pi OS Bookworm "
-                "and run this application on the Raspberry Pi with the AI Camera attached."
+                "Picamera2 could not be imported by this Python interpreter. "
+                f"Import error: {PICAMERA2_IMPORT_ERROR!r}. "
+                "If Picamera2 is installed with apt, run inside a venv created with "
+                "`python3 -m venv .venv --system-site-packages`, or run with system Python."
             )
 
         self.picam = Picamera2()

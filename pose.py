@@ -56,7 +56,12 @@ class PoseTracker:
             )
 
         model_path = Path(config.POSE_MODEL_PATH)
-        self.model_name = str(model_path if model_path.exists() and model_path.stat().st_size > 0 else config.POSE_MODEL_FALLBACK)
+        if not model_path.exists() or model_path.stat().st_size == 0:
+            raise RuntimeError(
+                f"YOLOv8-pose model is required at {model_path}. "
+                "Copy yolov8n-pose.pt into the model directory before running."
+            )
+        self.model_name = str(model_path)
         self.model = YOLO(self.model_name)
 
     def process(self, frame_bgr: np.ndarray) -> PoseResult:
