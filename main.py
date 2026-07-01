@@ -23,30 +23,21 @@ except Exception:  # Allows development/testing on non-Pi machines.
 
 
 class CameraSource:
-    """Picamera2-first source with a USB/OpenCV fallback for development."""
+    """Raspberry Pi AI Camera source through Picamera2."""
 
-    def __init__(self, use_picamera: bool = True, usb_index: int = 0) -> None:
+    def __init__(self) -> None:
         self.picam = None
-        self.cap = None
-        self.source_name = "none"
-        if use_picamera and Picamera2 is not None:
-            self.picam = Picamera2()
-            self._configure_picamera2()
-            self.picam.start()
-            self.source_name = "Picamera2"
-            time.sleep(0.8)
-        else:
-            # CAP_V4L2 is explicit for Raspberry Pi OS/Linux and harmless if ignored.
-            self.cap = cv2.VideoCapture(usb_index, cv2.CAP_V4L2)
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.FRAME_WIDTH)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.FRAME_HEIGHT)
-            self.cap.set(cv2.CAP_PROP_FPS, config.CAMERA_FPS)
-            self.source_name = f"USB camera index {usb_index}"
-            if not self.cap.isOpened():
-                raise RuntimeError(
-                    f"Unable to open {self.source_name}. Try another --usb-index, "
-                    "or run without --usb to use Picamera2."
-                )
+        self.source_name = "Pi AI Camera / Picamera2"
+        if Picamera2 is None:
+            raise RuntimeError(
+                "Picamera2 is not available. Install python3-picamera2 on Raspberry Pi OS Bookworm "
+                "and run this application on the Raspberry Pi with the AI Camera attached."
+            )
+
+        self.picam = Picamera2()
+        self._configure_picamera2()
+        self.picam.start()
+        time.sleep(0.8)
 
         self._validate_stream()
 
@@ -69,25 +60,13 @@ class CameraSource:
         self.picam.configure(cfg)
 
     def read(self):
-        if self.picam is not None:
-            try:
-                rgb = self.picam.capture_array()
-            except TypeError:
-                rgb = self.picam.capture_array("main")
-            if rgb is None or rgb.size == 0:
-                raise RuntimeError("Picamera2 returned an empty frame")
-            return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
-
-        # Some USB/V4L2 cameras drop a few frames during exposure/format settling.
-        for _ in range(5):
-            ok, frame = self.cap.read()
-            if ok and frame is not None and frame.size > 0:
-                return frame
-            time.sleep(0.02)
-        raise RuntimeError(
-            f"{self.source_name} opened but did not return frames. "
-            "Check that no other app is using the camera and try a different --usb-index."
-        )
+        try:
+            rgb = self.picam.capture_array()
+        except TypeError:
+            rgb = self.picam.capture_array("main")
+        if rgb is None or rgb.size == 0:
+            raise RuntimeError("Picamera2 returned an empty frame")
+        return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
 
     def _validate_stream(self) -> None:
         for _ in range(10):
@@ -105,8 +84,6 @@ class CameraSource:
         if self.picam is not None:
             self.picam.stop()
             self.picam.close()
-        if self.cap is not None:
-            self.cap.release()
 
 
 class OptionalBuzzer:
@@ -149,8 +126,6 @@ def phone_in_hand(detections, pose) -> bool:
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Driver attentiveness monitor")
-    parser.add_argument("--usb", action="store_true", help="Use OpenCV USB camera instead of Picamera2")
-    parser.add_argument("--usb-index", type=int, default=0, help="USB camera index")
     parser.add_argument("--no-window", action="store_true", help="Run headless without cv2.imshow")
     return parser.parse_args()
 
@@ -163,7 +138,7 @@ def main() -> int:
     buzzer = OptionalBuzzer()
 
     try:
-        camera = CameraSource(use_picamera=not args.usb, usb_index=args.usb_index)
+        camera = CameraSource()
         detector = YoloV8OnnxDetector()
         pose_tracker = PoseTracker()
         face_analyzer = FaceAnalyzer()

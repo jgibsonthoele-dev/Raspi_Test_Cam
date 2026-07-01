@@ -77,12 +77,6 @@ picam2.preview_configuration.align()
 picam2.configure("preview")
 ```
 
-USB camera fallback:
-
-```bash
-python main.py --usb --usb-index 0
-```
-
 Headless smoke test:
 
 ```bash
@@ -95,12 +89,11 @@ Press `q` or `Esc` to exit.
 
 If you see a startup or frame-capture error:
 
-- For the Raspberry Pi AI Camera, run `python main.py` without `--usb`.
-- For a USB webcam, run `python main.py --usb --usb-index 0`. If that fails, try `--usb-index 1` or `--usb-index 2`.
+- Run on Raspberry Pi OS Bookworm 64-bit with the Raspberry Pi AI Camera attached.
+- Run `python main.py`; USB cameras are intentionally not supported by this project.
 - Check camera visibility with `rpicam-hello --list-cameras` for CSI/AI Camera devices.
-- Check USB devices with `v4l2-ctl --list-devices`.
 - Make sure no other process is using the camera.
-- If OpenCV opens the USB camera but returns no frames, lower the requested frame size in `config.py`.
+- If Picamera2 starts but returns no frames, lower the requested frame size in `config.py`.
 
 ## Scoring Rules
 
