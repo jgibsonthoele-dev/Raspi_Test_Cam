@@ -5,6 +5,8 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = BASE_DIR / "model" / "phone_detector.onnx"
+POSE_MODEL_PATH = BASE_DIR / "model" / "yolov8n-pose.pt"
+POSE_MODEL_FALLBACK = "yolov8n-pose.pt"
 
 # Camera / processing dimensions. 640x480 keeps Raspberry Pi 5 CPU load practical.
 FRAME_WIDTH = 640
@@ -43,9 +45,14 @@ EYE_AWAY_RATIO_THRESHOLD = 0.19
 HEAD_AWAY_X_THRESHOLD = 0.18
 HEAD_AWAY_Y_THRESHOLD = 0.22
 
-# MediaPipe confidence thresholds.
-POSE_DETECTION_CONFIDENCE = 0.55
-POSE_TRACKING_CONFIDENCE = 0.55
+# YOLOv8-pose settings. The fallback model name lets Ultralytics download the
+# official nano pose model if model/yolov8n-pose.pt is not present.
+POSE_IMAGE_SIZE = 384
+POSE_CONFIDENCE = 0.35
+POSE_KEYPOINT_CONFIDENCE = 0.35
+POSE_DEVICE = "cpu"
+
+# MediaPipe Face Mesh confidence thresholds.
 FACE_DETECTION_CONFIDENCE = 0.55
 FACE_TRACKING_CONFIDENCE = 0.55
 

@@ -4,3 +4,4 @@ mediapipe
 picamera2
 onnxruntime
 gpiozero
+ultralytics
