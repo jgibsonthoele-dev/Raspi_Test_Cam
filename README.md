@@ -68,6 +68,15 @@ Picamera2:
 python main.py
 ```
 
+The Picamera2 source uses the same live-preview style as the Raspberry Pi examples:
+
+```python
+picam2.preview_configuration.main.size = (640, 480)
+picam2.preview_configuration.main.format = "RGB888"
+picam2.preview_configuration.align()
+picam2.configure("preview")
+```
+
 USB camera fallback:
 
 ```bash

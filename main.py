@@ -31,11 +31,7 @@ class CameraSource:
         self.source_name = "none"
         if use_picamera and Picamera2 is not None:
             self.picam = Picamera2()
-            cfg = self.picam.create_video_configuration(
-                main={"size": (config.FRAME_WIDTH, config.FRAME_HEIGHT), "format": "RGB888"},
-                controls={"FrameRate": config.CAMERA_FPS},
-            )
-            self.picam.configure(cfg)
+            self._configure_picamera2()
             self.picam.start()
             self.source_name = "Picamera2"
             time.sleep(0.8)
@@ -54,12 +50,30 @@ class CameraSource:
 
         self._validate_stream()
 
+    def _configure_picamera2(self) -> None:
+        # The preview configuration path matches Raspberry Pi's common examples
+        # and reliably returns RGB888 arrays from capture_array().
+        try:
+            self.picam.preview_configuration.main.size = (config.FRAME_WIDTH, config.FRAME_HEIGHT)
+            self.picam.preview_configuration.main.format = "RGB888"
+            self.picam.preview_configuration.align()
+            self.picam.configure("preview")
+            return
+        except Exception as exc:
+            print(f"Picamera2 preview configuration failed, trying video configuration: {exc}")
+
+        cfg = self.picam.create_video_configuration(
+            main={"size": (config.FRAME_WIDTH, config.FRAME_HEIGHT), "format": "RGB888"},
+            controls={"FrameRate": config.CAMERA_FPS},
+        )
+        self.picam.configure(cfg)
+
     def read(self):
         if self.picam is not None:
             try:
-                rgb = self.picam.capture_array("main")
-            except TypeError:
                 rgb = self.picam.capture_array()
+            except TypeError:
+                rgb = self.picam.capture_array("main")
             if rgb is None or rgb.size == 0:
                 raise RuntimeError("Picamera2 returned an empty frame")
             return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
