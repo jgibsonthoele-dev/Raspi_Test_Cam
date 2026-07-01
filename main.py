@@ -28,6 +28,7 @@ class CameraSource:
     def __init__(self, use_picamera: bool = True, usb_index: int = 0) -> None:
         self.picam = None
         self.cap = None
+        self.source_name = "none"
         if use_picamera and Picamera2 is not None:
             self.picam = Picamera2()
             cfg = self.picam.create_video_configuration(
@@ -36,23 +37,55 @@ class CameraSource:
             )
             self.picam.configure(cfg)
             self.picam.start()
-            time.sleep(0.3)
+            self.source_name = "Picamera2"
+            time.sleep(0.8)
         else:
-            self.cap = cv2.VideoCapture(usb_index)
+            # CAP_V4L2 is explicit for Raspberry Pi OS/Linux and harmless if ignored.
+            self.cap = cv2.VideoCapture(usb_index, cv2.CAP_V4L2)
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.FRAME_WIDTH)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.FRAME_HEIGHT)
             self.cap.set(cv2.CAP_PROP_FPS, config.CAMERA_FPS)
+            self.source_name = f"USB camera index {usb_index}"
             if not self.cap.isOpened():
-                raise RuntimeError("Unable to open camera source")
+                raise RuntimeError(
+                    f"Unable to open {self.source_name}. Try another --usb-index, "
+                    "or run without --usb to use Picamera2."
+                )
+
+        self._validate_stream()
 
     def read(self):
         if self.picam is not None:
-            rgb = self.picam.capture_array()
+            try:
+                rgb = self.picam.capture_array("main")
+            except TypeError:
+                rgb = self.picam.capture_array()
+            if rgb is None or rgb.size == 0:
+                raise RuntimeError("Picamera2 returned an empty frame")
             return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
-        ok, frame = self.cap.read()
-        if not ok:
-            raise RuntimeError("Camera frame capture failed")
-        return frame
+
+        # Some USB/V4L2 cameras drop a few frames during exposure/format settling.
+        for _ in range(5):
+            ok, frame = self.cap.read()
+            if ok and frame is not None and frame.size > 0:
+                return frame
+            time.sleep(0.02)
+        raise RuntimeError(
+            f"{self.source_name} opened but did not return frames. "
+            "Check that no other app is using the camera and try a different --usb-index."
+        )
+
+    def _validate_stream(self) -> None:
+        for _ in range(10):
+            try:
+                frame = self.read()
+            except Exception:
+                time.sleep(0.05)
+                continue
+            if frame is not None and frame.size > 0:
+                print(f"Camera ready: {self.source_name} ({frame.shape[1]}x{frame.shape[0]})")
+                return
+        raise RuntimeError(f"{self.source_name} did not produce a valid startup frame")
 
     def close(self) -> None:
         if self.picam is not None:

@@ -13,18 +13,18 @@ Production-style Raspberry Pi 5 driver attentiveness monitor using Picamera2, Ra
 
 ```text
 project/
-├── main.py
-├── config.py
-├── detector.py
-├── pose.py
-├── face.py
-├── scoring.py
-├── drawing.py
-├── utils.py
-├── requirements.txt
-├── README.md
-└── model/
-    └── phone_detector.onnx
+|-- main.py
+|-- config.py
+|-- detector.py
+|-- pose.py
+|-- face.py
+|-- scoring.py
+|-- drawing.py
+|-- utils.py
+|-- requirements.txt
+|-- README.md
+`-- model/
+    `-- phone_detector.onnx
 ```
 
 ## Setup
@@ -81,6 +81,17 @@ python main.py --no-window
 ```
 
 Press `q` or `Esc` to exit.
+
+## Camera Troubleshooting
+
+If you see a startup or frame-capture error:
+
+- For the Raspberry Pi AI Camera, run `python main.py` without `--usb`.
+- For a USB webcam, run `python main.py --usb --usb-index 0`. If that fails, try `--usb-index 1` or `--usb-index 2`.
+- Check camera visibility with `rpicam-hello --list-cameras` for CSI/AI Camera devices.
+- Check USB devices with `v4l2-ctl --list-devices`.
+- Make sure no other process is using the camera.
+- If OpenCV opens the USB camera but returns no frames, lower the requested frame size in `config.py`.
 
 ## Scoring Rules
 
